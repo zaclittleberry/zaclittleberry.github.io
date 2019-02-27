@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Installing Keycloak with Digital Ocean Managed Postgres | Zac Littleberry</title>
+  <link rel="stylesheet" type="text/css" href="../../styles.css">
+</head>
+<body class="post" id="installing-keycloak-with-digital-ocean-managed-postgres">
+
+  <nav>
+    <a href="../../index.html">&lt; home</a>
+  </nav>
+
+  <main id="main">
+    <article>
+      <h1>
+        Keycloak using Docker on Digital Ocean with Managed Postgres Database
+      </h1>
+
+      <p>
+        *This guide makes some assumptions: you have some technical comfortability spinning up a Digital Ocean VPS and connecting to it, you can follow along with command line commands, and you have a domain name and can add dns records for a subdomain. It will use this repo as a companion for the installation: https://github.com/GazePgh/gaze_auth*
+      </p>
+
+      <p>
+        The goal of this project was to easily and reliably stand up Keycloak (an open source Identity and Access Management provider made by Redhat) on a platform that provided a managed database. A managed database was desired as it is absolutely critical that the information is stored securely and isn't lost.
+      </p>
+
+      <p>
+        In this pursuit I have decided I wanted to avoid the "big three" in hosting (AWS, Google, Microsoft). I attempted to use OpenShift (redhat's platform) and Heroku (unfortunately owned by Salesforce), and was unable to get Keycloak running on those platforms.
+      </p>
+
+      <p>
+        As of the time of writing (February 2019) Digital Ocean has only _just_ made managed postgres available outside of beta, and as such I wanted to try it out ASAP and see if it would meet my needs.
+      </p>
+
+      <h2>
+        Creating the Digital Ocean Droplet
+      </h2>
+
+      <p>
+        First, sign in/up on Digital Ocean (I will shorten it to DO from now on) and create a new Droplet (I am using the cheapest one at $5/mo -- 1 GB/ 1 CPU, 25 GB SSD, 1000 GB transfer). Select "One-click apps" and choose "Docker 18.06.1~ce~3 on 18.04". This will start us with Docker Community Edition and Docker-compose on Ubuntu 18.04 to make our lives a little easier. Choose if you want automatic backups for 20% more $ (I did not because if something happens I can just re-set-up the VPS from this guide :) ). You shouldn't need block storage. In a new tab, start to create a new database on DO so you can see what datacenter regions are available to you for both databases and droplets. My instinct is to match the region and the number, and make it close to where your customers are if they are geographically concentrated. What I chose was New York - 1. For additional options I selected Private Networking. I highly suggest adding your ssh key. If you don't have one, github has a nice guide on generating it: https://help.github.com/en/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent. You can leave the droplet numbers at 1, and leave or change the hostname (I left mine as is). Press create, wait for the droplet to be provisioned, and then take note of the IP address, as we'll use that in the next step.
+      </p>
+
+      <h2>
+        Point your (Sub-)Domain at the Droplet
+      </h2>
+
+      <p>
+        Ok. Time for a little DNS, but don't worry, it will be pretty simple. Go to the DNS for your domain name. This will probably be managed through your domain name provider (I use namecheap.com) or, if you are like me and switched to using custom DNS, it might be somewhere like cloudflare (where mine is). Whatever the case, we only need to make one small addition. Go to your dns provider. Add an 'A' record where the name is your subdomain (in my case, accounts.gazepgh.org) and the IPv4 address is the IP address of your droplet. For Cloudflare I left the TTL to Automatic and the traffic routing through Cloudflare.
+      </p>
+
+      <h2>
+        Set up your Database
+      </h2>
+
+      <p>
+        Go back to your Digital Ocean account. Click 'Create' and choose 'Databases'. Select 'Postgres' and select the version (I chose 11). Choose your node size (I am using the cheapest one at $15/mo -- 1 GB RAM, 1 vCPU, 10 GB Disk). Choose the datacenter region and number, to match your droplet from before (again, New York - 1 in my case). We can actually configure it as it's provisioning, so let's do that. Click on 'Settings', then next to 'Allowed inbound sources' click 'Edit'. Add the Droplet you created as an inbound source. IF you need to access the database from your computer you can add your own IP, but for keycloak functionality you shouldn't need this. From the 'Connection Details' section copy down the 'host' and 'port' as we're going to use those.
+      </p>
+
+      <p>
+        We're now going to add a new user and database as we don't want to use the default ones. Go to 'Users & Databases', add a new database (the name doesn't matter but I like to name it so I can tell the repo and environment it attaches to). Now add a new user, and I suggest matching it to the database name. Take note of the user name, password, and database name as we are going to use these when configuring keycloak in the next section.
+      </p>
+
+      <h2>
+        Set up your Droplet
+      </h2>
+
+      <p>
+        Here's where a lot of things become mostly command line based.
+      </p>
+
+      <pre><code>
+# SSH to your droplet:
+ssh root@[droplet-IP-address]
+      </code></pre>
+
+      <pre><code>
+# Update software repositories:
+sudo apt-get update
+      </code></pre>
+
+      <pre><code>
+# Install git:
+sudo apt-get install git
+      </code></pre>
+
+      <pre><code>
+# Clone the repo (or swap for your fork):
+git clone https://github.com/GazePgh/gaze_auth.git
+      </code></pre>
+
+      <pre><code>
+# Copy  the example to variables.env
+cp variables.env.example variables.env
+      </code></pre>
+
+      <pre><code>
+# Fill in the details from the database
+nano variables.env
+      </code></pre>
+
+      <p>
+        From here you should basically follow the directions in server-setup.sh. Run each line one by one and make sure to read the directions for any replacements needed.
+      </p>
+
+      <p>
+        This will take you through docker building, configuration, and running, setting up nginx, getting an https certificate with Let's Encrypt, making the keycloak admin console accessible, and creating an initial/admin user.
+      </p>
+
+      <p>
+        I look forward to any feedback, and best of luck!
+      </p>
+    </article>
+  </main>
+
+  <script src="../../scripts.js"></script>
+</body>
+</html>
